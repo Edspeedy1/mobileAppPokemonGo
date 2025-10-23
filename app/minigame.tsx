@@ -1,19 +1,106 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Accelerometer } from 'expo-sensors';
+import React, { useEffect, useState } from 'react';
+import { Animated, Button, StyleSheet, Text, View } from 'react-native';
 
 export default function MiniGame() {
   const router = useRouter();
+  const [progress, setProgress] = useState(0);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [showClose, setShowClose] = useState(false);
+
+  // Sensitivity threshold for shake detection (adjust as needed)
+  const SHAKE_THRESHOLD = 1.2;
+
+  // Progress bar animation width
+  const progressWidth = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(100);
+
+    const subscription = Accelerometer.addListener(({ x, y, z }) => {
+      const totalAcceleration = Math.sqrt(x * x + y * y + z * z);
+
+      if (totalAcceleration > SHAKE_THRESHOLD) {
+        setProgress((p) => {
+          const newProgress = Math.min(p + 0.05, 1);
+          if (newProgress === 1) {
+            setShowClose(true);
+          }
+          return newProgress;
+        });
+      }
+    });
+
+    setSubscription(subscription);
+
+    return () => {
+      subscription && subscription.remove();
+      setSubscription(null);
+    };
+  }, []);
+
+  // Animate the progress bar width
+  useEffect(() => {
+    Animated.timing(progressWidth, {
+      toValue: progress,
+      duration: 100,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Minigame</Text>
-      <Button title="Close" onPress={() => router.back()} />
+      <Text style={styles.title}>Shake to fill the bar!</Text>
+      <View style={styles.progressBarBackground}>
+        <Animated.View
+          style={[
+            styles.progressBarFill,
+            {
+              width: progressWidth.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%'],
+              }),
+            },
+          ]}
+        />
+      </View>
+
+      {showClose && (
+        <View style={styles.closeButton}>
+          <Button title="Close" onPress={() => router.back()} />
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, marginBottom: 20 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#111',
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 30,
+    color: 'white',
+  },
+  progressBarBackground: {
+    width: '80%',
+    height: 30,
+    backgroundColor: '#333',
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#4caf50',
+  },
+  closeButton: {
+    marginTop: 40,
+    width: '50%',
+  },
 });

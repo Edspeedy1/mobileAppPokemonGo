@@ -36,15 +36,15 @@ const distanceMeters = (a: Coords, b: Coords) => {
   const R = 6371e3; // Earth radius in meters
   const phi1 = (a.latitude * Math.PI) / 180;
   const phi2 = (b.latitude * Math.PI) / 180;
-  const deltaphi = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const deltalambda = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const deltaPhi = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const deltaLambda = ((b.longitude - a.longitude) * Math.PI) / 180;
 
   const s =
-    Math.sin(deltaphi / 2) * Math.sin(deltaphi / 2) +
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
     Math.cos(phi1) *
       Math.cos(phi2) *
-      Math.sin(deltalambda / 2) *
-      Math.sin(deltalambda / 2);
+      Math.sin(deltaLambda / 2) *
+      Math.sin(deltaLambda / 2);
 
   return 2 * R * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 };
