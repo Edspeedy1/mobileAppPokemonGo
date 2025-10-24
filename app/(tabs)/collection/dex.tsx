@@ -1,35 +1,30 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet } from 'react-native'
+import { creatures } from '../../../assets/creatures'
+import CreatureCard from '../../../components/CreatureCard'
+import useGameStore from '../../store/useGameStore'
 
-export default function BasicScreen() {
+export default function DexScreen() {
+  const caughtList = useGameStore((state) => state.caughtList) // get caught IDs
+
   return (
-    <View style={styles.content}>
-      <Text style={styles.title}>Dex</Text>
-      <Text style={styles.text}>This is a basic screen template. Add your content here.</Text>
-    </View>
-  );
+    <ScrollView contentContainerStyle={styles.container}>
+      {creatures.map((entry) => (
+        <CreatureCard
+          key={entry.id}
+          name={entry.name}
+          image={entry.image}
+          discovered={caughtList.includes(entry.id)} // 👈 true if caught
+        />
+      ))}
+    </ScrollView>
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#f0f4f7", // light neutral background
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    padding: 10,
   },
-  content: {
-    flex: 1,
-    justifyContent: "center", // center vertically
-    alignItems: "center", // center horizontally
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 12,
-    color: "#222",
-  },
-  text: {
-    fontSize: 16,
-    color: "#555",
-    textAlign: "center",
-  },
-});
+})

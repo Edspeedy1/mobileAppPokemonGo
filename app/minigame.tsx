@@ -2,12 +2,15 @@ import { useRouter } from 'expo-router';
 import { Accelerometer } from 'expo-sensors';
 import React, { useEffect, useState } from 'react';
 import { Animated, Button, StyleSheet, Text, View } from 'react-native';
+import { useGiveCreature } from './store/giveCreature';
 
 export default function MiniGame() {
   const router = useRouter();
   const [progress, setProgress] = useState(0);
   const [subscription, setSubscription] = useState<any>(null);
   const [showClose, setShowClose] = useState(false);
+  const giveCreature = useGiveCreature()
+  const hasGivenCreature = React.useRef(false);
 
   // Sensitivity threshold for shake detection (adjust as needed)
   const SHAKE_THRESHOLD = 1.2;
@@ -23,10 +26,15 @@ export default function MiniGame() {
 
       if (totalAcceleration > SHAKE_THRESHOLD) {
         setProgress((p) => {
-          const newProgress = Math.min(p + 0.05, 1);
-          if (newProgress === 1) {
-            setShowClose(true);
-          }
+          const newProgress = Math.min(p + 0.01*totalAcceleration, 1);
+            if (newProgress === 1 && !hasGivenCreature.current && !showClose) {
+              setShowClose(true);
+              hasGivenCreature.current = true;
+              setTimeout(() => {
+                const c = giveCreature();
+                if (c) console.log(`Caught ${c.name}!`);
+              }, 0);
+            }
           return newProgress;
         });
       }

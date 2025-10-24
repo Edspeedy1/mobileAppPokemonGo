@@ -1,8 +1,8 @@
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
-import MapView, { Circle, Region } from 'react-native-maps';
+import { ActivityIndicator, Alert, GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
+import MapView, { Circle, Marker, Region } from 'react-native-maps';
 
 type Coords = {
   latitude: number;
@@ -53,9 +53,6 @@ export default function HomeScreen() {
   const [location, setLocation] = useState<Coords | null>(null);
   const [loading, setLoading] = useState(true);
   const [blobs, setBlobs] = useState<Blob[]>([]);
-  const [blobPositions, setBlobPositions] = useState<
-    { id: string; x: number; y: number }[]
-  >([]);
   const mapRef = useRef<MapView>(null);
   const INTERACTION_RADIUS = 30; // meters
   const router = useRouter();
@@ -66,7 +63,7 @@ export default function HomeScreen() {
 
     (async () => {
       try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission denied', 'Location permission is required.');
           setLoading(false);
@@ -141,40 +138,39 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [location]);
 
-  // Update blob screen positions whenever blobs or location change
-  useEffect(() => {
-    if (!mapRef.current || !location) return;
-
-    async function updatePositions() {
-      const positions: { id: string; x: number; y: number }[] = [];
-
-      for (const blob of blobs) {
-        try {
-          const point = await mapRef.current!.pointForCoordinate({
-            latitude: blob.latitude,
-            longitude: blob.longitude,
-          });
-          positions.push({ id: blob.id, x: point.x, y: point.y });
-        } catch (e) {
-          // ignore errors if map not ready yet
-        }
-      }
-      setBlobPositions(positions);
-    }
-
-    updatePositions();
-  }, [blobs, location]);
-
   const handleBlobPress = (blob: Blob) => {
-    if (!blob.inRange) return; // ignore taps out of range
+    if (!blob.inRange) return;
 
-    // toggle clicked state (color)
     setBlobs((prev) =>
       prev.map((b) => (b.id === blob.id ? { ...b, clicked: !b.clicked } : b))
     );
 
     router.push('/minigame');
   };
+
+  // Single full-screen pressable for blob interaction
+const handleMapPress = async (e: GestureResponderEvent) => {
+  if (!mapRef.current || !location) return;
+  const { pageX, pageY } = e.nativeEvent;
+
+  for (const blob of blobs) {
+    try {
+      const point = await mapRef.current.pointForCoordinate({
+        latitude: blob.latitude,
+        longitude: blob.longitude,
+      });
+      const dx = pageX - point.x;
+      const dy = pageY - point.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < 20) {
+        handleBlobPress(blob);
+        break;
+      }
+    } catch (err) {
+      console.warn('Point conversion error:', err);
+    }
+  }
+};
 
   if (loading || !location) {
     return (
@@ -216,31 +212,36 @@ export default function HomeScreen() {
           strokeColor="rgba(0, 150, 255, 0.9)"
           fillColor="rgba(0, 150, 255, 0.35)"
         />
-      </MapView>
 
-      {/* Render blobs as absolutely positioned Views over the Map */}
-      {blobPositions.map(({ id, x, y }) => {
-        const blob = blobs.find((b) => b.id === id);
-        if (!blob) return null;
-
-        return (
-          <Pressable
-            key={id}
-            onPress={() => handleBlobPress(blob)}
-            style={[
-              styles.blob,
-              {
-                top: y - 20, // center the 40x40 blob on point
-                left: x - 20,
+        {/* Render markers */}
+        {blobs.map((blob) => (
+          <Marker
+            key={blob.id}
+            coordinate={{ latitude: blob.latitude, longitude: blob.longitude }}
+            tracksViewChanges={false}
+            pointerEvents="none" // markers themselves do nothing on click
+          >
+            <View
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 20,
                 backgroundColor: blob.clicked
                   ? 'rgba(0, 255, 0, 0.8)'
                   : 'rgba(255, 0, 0, 0.8)',
+                borderWidth: 2,
                 borderColor: blob.inRange ? 'white' : 'gray',
-              },
-            ]}
-          />
-        );
-      })}
+              }}
+            />
+          </Marker>
+        ))}
+      </MapView>
+
+      {/* Full-screen invisible pressable for interaction */}
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPressIn={handleMapPress} // <-- use onPressIn
+      />
     </View>
   );
 }
@@ -252,13 +253,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  blob: {
-    position: 'absolute',
-    width: 30,
-    height: 30,
-    borderRadius: 20,
-    borderWidth: 2,
-    // backgroundColor and borderColor set dynamically
   },
 });
