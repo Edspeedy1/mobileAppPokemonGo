@@ -1,7 +1,14 @@
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  GestureResponderEvent,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import MapView, { Circle, Marker, Region } from 'react-native-maps';
 
 type Coords = {
@@ -53,13 +60,15 @@ export default function HomeScreen() {
   const [location, setLocation] = useState<Coords | null>(null);
   const [loading, setLoading] = useState(true);
   const [blobs, setBlobs] = useState<Blob[]>([]);
+  const [heading, setHeading] = useState(0); // <-- track phone orientation
   const mapRef = useRef<MapView>(null);
   const INTERACTION_RADIUS = 30; // meters
   const router = useRouter();
 
-  // On mount, get location, generate blobs and watch location
+  // On mount, get location, generate blobs, watch location + heading
   useEffect(() => {
-    let subscription: Location.LocationSubscription | null = null;
+    let locSub: Location.LocationSubscription | null = null;
+    let headSub: Location.LocationSubscription | null = null;
 
     (async () => {
       try {
@@ -73,11 +82,10 @@ export default function HomeScreen() {
         const currentLocation = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
         });
-
         const { latitude, longitude } = currentLocation.coords;
         setLocation({ latitude, longitude });
 
-        // Generate blobs within ~100m radius
+        // Generate blobs
         const newBlobs: Blob[] = Array.from({ length: 8 }).map((_, i) => ({
           id: `blob-${i}`,
           latitude: latitude + randomOffset(50),
@@ -87,7 +95,8 @@ export default function HomeScreen() {
         }));
         setBlobs(newBlobs);
 
-        subscription = await Location.watchPositionAsync(
+        // Watch location updates
+        locSub = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
             timeInterval: 1000,
@@ -108,69 +117,74 @@ export default function HomeScreen() {
             );
           }
         );
+
+        // Watch heading updates
+        headSub = await Location.watchHeadingAsync((data) => {
+          setHeading(data.trueHeading ?? 0);
+        });
       } catch (err) {
         console.error(err);
-        Alert.alert('Error', 'Unable to get location.');
+        Alert.alert('Error', 'Unable to get location or heading.');
       } finally {
         setLoading(false);
       }
     })();
 
-    return () => subscription?.remove();
+    return () => {
+      locSub?.remove();
+      headSub?.remove();
+    };
   }, []);
 
-  // Keep map centered on player every 500ms
+  // Keep map centered and rotated according to heading
   useEffect(() => {
-    if (!location) return;
+    if (!location || !mapRef.current) return;
 
-    const interval = setInterval(() => {
-      mapRef.current?.animateToRegion(
-        {
+    mapRef.current.animateCamera(
+      {
+        center: {
           latitude: location.latitude,
           longitude: location.longitude,
-          latitudeDelta: 0.001,
-          longitudeDelta: 0.001,
         },
-        300
-      );
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [location]);
+        heading, // rotate map
+        pitch: 0,
+        zoom: 18,
+      },
+      { duration: 300 }
+    );
+  }, [location, heading]);
 
   const handleBlobPress = (blob: Blob) => {
     if (!blob.inRange) return;
-
     setBlobs((prev) =>
       prev.map((b) => (b.id === blob.id ? { ...b, clicked: !b.clicked } : b))
     );
-
     router.push('/minigame');
   };
 
-  // Single full-screen pressable for blob interaction
-const handleMapPress = async (e: GestureResponderEvent) => {
-  if (!mapRef.current || !location) return;
-  const { pageX, pageY } = e.nativeEvent;
+  // Handle screen taps to detect blob proximity
+  const handleMapPress = async (e: GestureResponderEvent) => {
+    if (!mapRef.current || !location) return;
+    const { pageX, pageY } = e.nativeEvent;
 
-  for (const blob of blobs) {
-    try {
-      const point = await mapRef.current.pointForCoordinate({
-        latitude: blob.latitude,
-        longitude: blob.longitude,
-      });
-      const dx = pageX - point.x;
-      const dy = pageY - point.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance < 20) {
-        handleBlobPress(blob);
-        break;
+    for (const blob of blobs) {
+      try {
+        const point = await mapRef.current.pointForCoordinate({
+          latitude: blob.latitude,
+          longitude: blob.longitude,
+        });
+        const dx = pageX - point.x;
+        const dy = pageY - point.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 20) {
+          handleBlobPress(blob);
+          break;
+        }
+      } catch (err) {
+        console.warn('Point conversion error:', err);
       }
-    } catch (err) {
-      console.warn('Point conversion error:', err);
     }
-  }
-};
+  };
 
   if (loading || !location) {
     return (
@@ -204,7 +218,6 @@ const handleMapPress = async (e: GestureResponderEvent) => {
         showsMyLocationButton={false}
         customMapStyle={noLabelsStyle}
       >
-        {/* Player interaction circle */}
         <Circle
           center={location}
           radius={INTERACTION_RADIUS}
@@ -212,14 +225,12 @@ const handleMapPress = async (e: GestureResponderEvent) => {
           strokeColor="rgba(0, 150, 255, 0.9)"
           fillColor="rgba(0, 150, 255, 0.35)"
         />
-
-        {/* Render markers */}
         {blobs.map((blob) => (
           <Marker
             key={blob.id}
             coordinate={{ latitude: blob.latitude, longitude: blob.longitude }}
             tracksViewChanges={false}
-            pointerEvents="none" // markers themselves do nothing on click
+            pointerEvents="none"
           >
             <View
               style={{
@@ -227,8 +238,8 @@ const handleMapPress = async (e: GestureResponderEvent) => {
                 height: 30,
                 borderRadius: 20,
                 backgroundColor: blob.clicked
-                  ? 'rgba(0, 255, 0, 0.8)'
-                  : 'rgba(255, 0, 0, 0.8)',
+                  ? 'rgba(0,255,0,0.8)'
+                  : 'rgba(255,0,0,0.8)',
                 borderWidth: 2,
                 borderColor: blob.inRange ? 'white' : 'gray',
               }}
@@ -237,11 +248,8 @@ const handleMapPress = async (e: GestureResponderEvent) => {
         ))}
       </MapView>
 
-      {/* Full-screen invisible pressable for interaction */}
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        onPressIn={handleMapPress} // <-- use onPressIn
-      />
+      {/* Full-screen invisible tap zone */}
+      <Pressable style={StyleSheet.absoluteFill} onPressIn={handleMapPress} />
     </View>
   );
 }

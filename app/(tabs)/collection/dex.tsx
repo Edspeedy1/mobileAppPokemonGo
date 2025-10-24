@@ -13,7 +13,7 @@ export default function DexScreen() {
           key={entry.id}
           name={entry.name}
           image={entry.image}
-          discovered={caughtList.includes(entry.id)} // 👈 true if caught
+          discovered={caughtList.includes(entry.id)} 
         />
       ))}
     </ScrollView>

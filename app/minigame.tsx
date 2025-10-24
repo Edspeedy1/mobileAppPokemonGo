@@ -33,6 +33,7 @@ export default function MiniGame() {
               setTimeout(() => {
                 const c = giveCreature();
                 if (c) console.log(`Caught ${c.name}!`);
+                router.replace({ pathname: './caughtScreen', params: { creatureName: c?.name } });
               }, 0);
             }
           return newProgress;
@@ -73,12 +74,9 @@ export default function MiniGame() {
           ]}
         />
       </View>
-
-      {showClose && (
         <View style={styles.closeButton}>
-          <Button title="Close" onPress={() => router.back()} />
+          <Button title="Close" onPress={() => router.push("/")} />
         </View>
-      )}
     </View>
   );
 }
