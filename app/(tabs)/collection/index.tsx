@@ -5,23 +5,28 @@ import CreatureCard from "../../../components/CreatureCard"
 import useGameStore from "../../store/useGameStore"
 
 export default function CollectionScreen() {
-  const caughtIds = useGameStore((state) => state.caughtList)
+  const caughtCreatures = useGameStore((state) => state.creatures)
 
-  // Get the actual caught creatures from the allCreatures list
-  const caughtCreatures = allCreatures.filter((c) =>
-    caughtIds.includes(c.id)
-  )
+  // Map each caught creature to the full creature object from allCreatures
+  const mappedCreatures = caughtCreatures.map((c) => {
+    const fullData = allCreatures.find((ac) => ac.id.toString() === c.id)
+    return {
+      ...c,
+      name: fullData?.name ?? c.name,
+      image: fullData?.image,
+    }
+  })
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Collection</Text>
-      {caughtCreatures.length === 0 ? (
+      {mappedCreatures.length === 0 ? (
         <Text style={styles.text}>You haven't caught any creatures yet!</Text>
       ) : (
         <ScrollView contentContainerStyle={styles.grid}>
-          {caughtCreatures.map((c) => (
+          {mappedCreatures.map((c, index) => (
             <CreatureCard
-              key={c.id}
+              key={`${c.id}-${index}`} // index included to allow duplicates
               name={c.name}
               image={c.image}
               discovered={true}

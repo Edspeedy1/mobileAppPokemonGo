@@ -17,7 +17,6 @@ export default function CreatureCard({ name, image, discovered }: Props) {
 						source={image}
 						style={[
 							styles.image,
-							styles.shadowImage,
 							{ tintColor: "black", opacity: 0.7 },
 						]}
 						resizeMode="contain"
@@ -51,9 +50,6 @@ const styles = StyleSheet.create({
 		width: "100%",
 		height: "100%",
 		position: "absolute",
-	},
-	shadowImage: {
-		transform: [{ translateX: 3 }, { translateY: 3 }], // shadow offset
 	},
 	name: {
 		marginTop: 6,
