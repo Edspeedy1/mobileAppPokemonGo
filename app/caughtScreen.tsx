@@ -9,26 +9,25 @@ import {
 	StyleSheet,
 	Text,
 	TouchableOpacity,
-	View
+	View,
 } from "react-native";
 import { creatures } from "../assets/creatures";
 
 export const unstable_settings = {
-  headerShown: false,        // removes top nav bar
-  tabBarStyle: { display: 'none' }, // hides bottom tab bar if in a tab layout
+	headerShown: false, // removes top nav bar
+	tabBarStyle: { display: "none" }, // hides bottom tab bar if in a tab layout
 };
-
 
 const CaughtScreen = () => {
 	const { width, height } = Dimensions.get("window");
-    const [showCreature, setShowCreature] = React.useState(false);
+	const [showCreature, setShowCreature] = React.useState(false);
 	const router = useRouter();
 	const params = useLocalSearchParams();
 	const creatureName = params.creatureName as string;
 
 	const creature = creatures.find((c) => c.name.toLowerCase() === creatureName?.toLowerCase());
 
-    // console.log(creature, creatureName, params);
+	// console.log(creature, creatureName, params);
 	const creatureImage: ImageSourcePropType =
 		creature?.image || require("../assets/creatureImages/Aeloll.png");
 
@@ -36,10 +35,14 @@ const CaughtScreen = () => {
 	const ballScale = useRef(new Animated.Value(0)).current;
 	const lightRotation = useRef(new Animated.Value(0)).current;
 	const backgroundOpacity = useRef(new Animated.Value(0)).current;
-	const pokemonBounce = useRef(new Animated.Value(0)).current;
+	const creatureBounce = useRef(new Animated.Value(0)).current;
 	const buttonOpacity = useRef(new Animated.Value(0)).current;
 
 	const rotatingLight = require("../assets/rewardLights.png");
+
+	const creatureBob = useRef(new Animated.Value(0)).current;
+	const creatureWobble = useRef(new Animated.Value(0)).current;
+
 	// sound refs
 	const drumrollSoundRef = useRef<Audio.Sound | null>(null);
 	const successSoundRef = useRef<Audio.Sound | null>(null);
@@ -109,22 +112,69 @@ const CaughtScreen = () => {
 						duration: 500,
 						useNativeDriver: true,
 					}),
-				])
+				]),
+				Animated.loop(Animated.sequence([
+					Animated.timing(creatureBounce, {
+						toValue: 1,
+						duration: 40,
+						easing: Easing.inOut(Easing.sin),
+						useNativeDriver: true,
+					}),
+					Animated.timing(creatureBounce, {
+						toValue: 0,
+						duration: 40,
+						easing: Easing.inOut(Easing.sin),
+						useNativeDriver: true,
+					}),
+				])),
 			]),
-				Animated.spring(pokemonBounce, {
-				toValue: 1,
-				friction: 3,
-				tension: 40,
-				useNativeDriver: true,
-			})
 		]).start();
 
 		playSounds();
 
-        setTimeout(() => {
-            setShowCreature(true);
-        }, 4310);
+		setTimeout(() => {
+			setShowCreature(true);
 
+			Animated.loop(
+				Animated.sequence([
+					Animated.timing(creatureBob, {
+						toValue: 1,
+						duration: 500,
+						easing: Easing.inOut(Easing.sin),
+						useNativeDriver: true,
+					}),
+					Animated.timing(creatureBob, {
+						toValue: 0,
+						duration: 500,
+						easing: Easing.inOut(Easing.sin),
+						useNativeDriver: true,
+					}),
+				])
+			).start();
+
+			Animated.loop(
+				Animated.sequence([
+					Animated.timing(creatureWobble, {
+						toValue: 1,
+						duration: 1000,
+						easing: Easing.inOut(Easing.sin),
+						useNativeDriver: true,
+					}),
+					Animated.timing(creatureWobble, {
+						toValue: -1,
+						duration: 1000,
+						easing: Easing.inOut(Easing.sin),
+						useNativeDriver: true,
+					}),
+					Animated.timing(creatureWobble, {
+						toValue: 0,
+						duration: 1000,
+						easing: Easing.inOut(Easing.sin),
+						useNativeDriver: true,
+					}),
+				])
+			).start();
+		}, 4310);
 
 		// cleanup on unmount
 		return () => {
@@ -157,6 +207,16 @@ const CaughtScreen = () => {
 		router.replace("/");
 	};
 
+	const translateY = creatureBob.interpolate({
+		inputRange: [0, 1],
+		outputRange: [0, -15], // up/down distance
+	});
+
+	const translateX = creatureWobble.interpolate({
+		inputRange: [-1, 1],
+		outputRange: [-10, 10], // left/right wiggle distance
+	});
+
 	return (
 		<View style={styles.container}>
 			<Animated.View style={[styles.background, { opacity: backgroundOpacity }]} />
@@ -180,47 +240,37 @@ const CaughtScreen = () => {
 			)}
 			<Animated.View style={[styles.whiteCircle, { transform: [{ scale: ballScale }] }]} />
 
-            {showCreature ? (
-                <Animated.Image
-                    source={creatureImage}
-                    style={[
-                        styles.pokemonImage,
-                        {
-                            transform: [
-                                {
-                                    translateY: pokemonBounce.interpolate({
-                                        inputRange: [0, 1],
-                                        outputRange: [20, -10],
-                                    }),
-                                },
-                            ],
-                        },
-                    ]}
-                />
-            ) : (
-                <Animated.View
-                    style={[
-                        styles.blackBall,
-                        {
-                            transform: [
-                                {
-                                    translateY: pokemonBounce.interpolate({
-                                        inputRange: [0, 1],
-                                        outputRange: [20, -10],
-                                    }),
-                                },
-                            ],
-                        },
-                    ]}
-                />
-            )}
+			{showCreature ? (
+				<Animated.Image
+					source={creatureImage}
+					style={[
+						styles.creatureImage,
+						{
+							transform: [{ translateY }, { translateX }],
+						},
+					]}
+				/>
+			) : (
+				<Animated.View
+					style={[
+						styles.blackBall,
+						{
+							transform: [
+								{
+									translateY: creatureBounce.interpolate({
+										inputRange: [0, 1],
+										outputRange: [5, -5],
+									}),
+								},
+							],
+						},
+					]}
+				/>
+			)}
 
 			<Text style={styles.creatureName}>
-                {showCreature
-                    ? creature?.name || "Unknown Creature"
-                    : "---"}
-            </Text>
-
+				{showCreature ? creature?.name || "Unknown Creature" : "---"}
+			</Text>
 
 			<Animated.View style={[styles.buttonContainer, { opacity: buttonOpacity }]}>
 				<TouchableOpacity style={styles.collectButton} onPress={handleCollect}>
@@ -250,7 +300,7 @@ const styles = StyleSheet.create({
 		backgroundColor: "#fffc",
 		position: "absolute",
 	},
-	pokemonImage: {
+	creatureImage: {
 		width: 200,
 		height: 200,
 		zIndex: 3,
@@ -278,13 +328,13 @@ const styles = StyleSheet.create({
 		borderRadius: 30,
 		elevation: 5,
 	},
-    blackBall: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+	blackBall: {
+		width: 100,
+		height: 100,
+		borderRadius: 50,
 		zIndex: 2,
-        backgroundColor: "#000",
-    },
+		backgroundColor: "#000",
+	},
 	buttonText: {
 		zIndex: 10,
 		color: "#fff",

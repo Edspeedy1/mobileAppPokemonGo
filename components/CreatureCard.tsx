@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
 	card: {
 		alignItems: "center",
 		justifyContent: "center",
-		backgroundColor: "#eee",
+		backgroundColor: "#45464bff",
 		borderRadius: 12,
 		padding: 10,
 		width: 100,
@@ -54,6 +54,8 @@ const styles = StyleSheet.create({
 	name: {
 		marginTop: 6,
 		fontWeight: "bold",
+		fontSize: 12,
+		color: "white",
 		textTransform: "capitalize",
 	},
 	hiddenName: {

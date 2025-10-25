@@ -24,3 +24,13 @@ export function useGiveCreature() {
     return randomCreature
   }
 }
+
+export function removeCreature(id: string) {
+  useGameStore.setState((state) => {
+    const index = state.creatures.findLastIndex((c) => c.name === id)
+    console.log(index)
+    if (index === -1) return state
+    state.creatures.splice(index, 1)
+    return state
+  })
+}
